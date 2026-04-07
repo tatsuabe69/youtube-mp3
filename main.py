@@ -37,4 +37,5 @@ if __name__ == '__main__':
         resizable=True,
         min_size=(500, 420),
     )
-    webview.start()
+    # edgechromium = Windows 11 標準の Edge WebView2（pythonnet 不要・軽量）
+    webview.start(gui='edgechromium')
