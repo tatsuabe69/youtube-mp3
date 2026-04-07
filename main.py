@@ -55,9 +55,14 @@ class DownloadApi:
 
         shutil.copy2(src, dst)
 
-        # エクスプローラーでファイルを選択状態で開く
-        import subprocess
-        subprocess.Popen(['explorer', '/select,', str(dst)])
+        # ファイルマネージャーでファイルを選択状態で開く
+        import subprocess, platform
+        if platform.system() == 'Windows':
+            subprocess.Popen(['explorer', '/select,', str(dst)])
+        elif platform.system() == 'Darwin':
+            subprocess.Popen(['open', '-R', str(dst)])
+        else:
+            subprocess.Popen(['xdg-open', str(downloads)])
 
         return {'ok': True, 'path': str(dst)}
 
@@ -82,4 +87,8 @@ if __name__ == '__main__':
         min_size=(500, 420),
         js_api=api,
     )
-    webview.start(gui='edgechromium')
+    import platform
+    if platform.system() == 'Windows':
+        webview.start(gui='edgechromium')
+    else:
+        webview.start()  # Mac: cocoa (デフォルト)

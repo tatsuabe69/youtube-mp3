@@ -1,0 +1,124 @@
+name: Build Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.1.0)'
+        required: true
+        default: 'v1.1.0'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install flask yt-dlp static-ffmpeg pywebview pyinstaller
+
+      - name: Build exe
+        run: |
+          pyinstaller --onefile --noconsole --name YT2MP3 `
+            --collect-all yt_dlp `
+            --collect-all static_ffmpeg `
+            --collect-all webview `
+            --hidden-import flask `
+            --hidden-import engineio.async_drivers.threading `
+            main.py
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        run: iscc installer.iss
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/YT2MP3-Setup.exe
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install flask yt-dlp static-ffmpeg pywebview pyinstaller pyinstaller-hooks-contrib
+
+      - name: Build app
+        run: |
+          pyinstaller --onefile --windowed --name YT2MP3 \
+            --collect-all yt_dlp \
+            --collect-all static_ffmpeg \
+            --collect-all webview \
+            --hidden-import flask \
+            --hidden-import engineio.async_drivers.threading \
+            main.py
+
+      - name: Create DMG
+        run: |
+          mkdir -p dist/dmg
+          cp -r dist/YT2MP3 dist/dmg/ 2>/dev/null || cp -r "dist/YT2MP3.app" dist/dmg/
+          hdiutil create \
+            -volname "YT2MP3" \
+            -srcfolder dist/dmg \
+            -ov -format UDZO \
+            dist/YT2MP3-Mac.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-installer
+          path: dist/YT2MP3-Mac.dmg
+
+  release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: YT2MP3 ${{ steps.version.outputs.tag }}
+          body: |
+            ## ダウンロード
+            - **Windows**: `YT2MP3-Setup.exe` を実行してインストール
+            - **Mac**: `YT2MP3-Mac.dmg` を開いてアプリをApplicationsにドラッグ
+
+            ## 動作環境
+            - Windows 10/11 (64bit)
+            - macOS 12 以上
+          files: |
+            artifacts/windows-installer/YT2MP3-Setup.exe
+            artifacts/mac-installer/YT2MP3-Mac.dmg
