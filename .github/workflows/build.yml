@@ -47,20 +47,25 @@ jobs:
           path: dist/YT2MP3-Setup.exe
 
   build-mac:
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Install Python (universal2)
+        run: |
+          curl -fsSL -o python.pkg https://www.python.org/ftp/python/3.12.9/python-3.12.9-macos11.pkg
+          sudo installer -pkg python.pkg -target /
 
       - name: Install dependencies
-        run: pip install flask yt-dlp static-ffmpeg pywebview pyinstaller pyinstaller-hooks-contrib
+        run: |
+          /Library/Frameworks/Python.framework/Versions/3.12/bin/pip3 install \
+            flask yt-dlp static-ffmpeg pywebview pyinstaller pyinstaller-hooks-contrib
 
       - name: Build app
         run: |
-          pyinstaller --windowed --name YT2MP3 \
+          /Library/Frameworks/Python.framework/Versions/3.12/bin/pyinstaller \
+            --windowed --name YT2MP3 \
+            --target-arch universal2 \
             --collect-all yt_dlp \
             --collect-all static_ffmpeg \
             --collect-all webview \
