@@ -82,26 +82,12 @@ nav {
 /* waveform bg */
 .waveform-bg {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex; align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 40px;
+  inset: 0;
   pointer-events: none;
-  opacity: 0.07;
 }
-.wb {
-  flex: 1; max-width: 6px;
-  background: var(--fg);
-  border-radius: 1px;
-  animation: wb 3s ease-in-out infinite;
-}
-.wb:nth-child(odd) { animation-direction: alternate; }
-
-@keyframes wb {
-  0%   { height: 20%; }
-  50%  { height: 90%; }
-  100% { height: 35%; }
+#wf-canvas {
+  width: 100%; height: 100%;
+  display: block;
 }
 
 .hero-tag {
@@ -307,20 +293,75 @@ nav {
 /* HOWTO */
 .howto {
   border-top: 1px solid var(--line);
-  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  padding: 80px 40px;
+}
+.howto-header {
+  display: flex; align-items: baseline; gap: 24px; margin-bottom: 64px;
+}
+.steps-timeline {
+  display: grid; grid-template-columns: 1fr 48px 1fr 48px 1fr;
+  align-items: start; gap: 0;
+}
+.step-connector {
+  display: flex; align-items: flex-start;
+  padding-top: 24px;
+}
+.step-connector-line {
+  width: 100%; height: 1px;
+  background: linear-gradient(90deg, rgba(240,237,232,0.15), rgba(240,237,232,0.06));
+  margin-top: 0;
 }
 .step {
-  padding: 56px 36px;
-  border-right: 1px solid var(--line);
+  background: rgba(240,237,232,0.03);
+  border: 1px solid rgba(240,237,232,0.08);
+  border-radius: 4px;
+  padding: 28px 28px 32px;
+  position: relative; overflow: hidden;
+  transition: background 0.3s, border-color 0.3s, transform 0.2s;
+  cursor: default;
 }
-.step:last-child { border-right: none; }
-.step-n {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 4rem; color: rgba(240,237,232,0.06);
-  line-height: 1; margin-bottom: 16px;
+.step::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle 160px at var(--mx,50%) var(--my,50%), rgba(240,237,232,0.05) 0%, transparent 70%);
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
 }
-.step-title { font-size: 0.95rem; font-weight: 500; margin-bottom: 10px; }
-.step-desc { font-size: 0.83rem; font-weight: 300; color: var(--fg2); line-height: 1.7; }
+.step:hover::after { opacity: 1; }
+.step:hover {
+  background: rgba(240,237,232,0.05);
+  border-color: rgba(240,237,232,0.16);
+  transform: translateY(-3px);
+}
+.step-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-bottom: 20px;
+}
+.step-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.1em;
+  color: var(--bg); background: var(--fg);
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 500; flex-shrink: 0;
+}
+.step-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--fg2);
+}
+.step-divider {
+  height: 1px; width: 32px;
+  background: rgba(240,237,232,0.15);
+  margin-bottom: 16px;
+}
+.step-title {
+  font-size: 1rem; font-weight: 500;
+  color: var(--fg); margin-bottom: 10px; line-height: 1.3;
+}
+.step-desc {
+  font-size: 0.83rem; font-weight: 300;
+  color: var(--fg2); line-height: 1.75;
+}
 
 /* INSTALL */
 .install {
@@ -443,9 +484,12 @@ footer {
   .hero { padding: 56px 20px 48px; }
   .waveform-bg { padding: 0 20px; }
   .hero-bottom { flex-direction: column; align-items: flex-start; }
-  .features, .howto, .install { grid-template-columns: 1fr; }
-  .feat, .step, .iblock { border-right: none; border-bottom: 1px solid var(--line); }
-  .feat:last-child, .step:last-child, .iblock:last-child { border-bottom: none; }
+  .features, .install { grid-template-columns: 1fr; }
+  .feat, .iblock { border-right: none; border-bottom: 1px solid var(--line); }
+  .feat:last-child, .iblock:last-child { border-bottom: none; }
+  .howto { padding: 60px 20px; }
+  .steps-timeline { grid-template-columns: 1fr; gap: 16px; }
+  .step-connector { display: none; }
   .quality { padding: 60px 20px; }
   .quality-grid { grid-template-columns: repeat(2, 1fr); }
   .cta { flex-direction: column; align-items: flex-start; padding: 60px 20px; }
@@ -467,7 +511,6 @@ footer {
       <li><a href="#features">機能</a></li>
       <li><a href="#quality">音質</a></li>
       <li><a href="#howto">使い方</a></li>
-      <li><a href="#install">インストール</a></li>
     </ul>
     <a class="nav-btn" href="https://github.com/tatsuabe69/youtube-mp3">GitHub</a>
   </div>
@@ -475,7 +518,9 @@ footer {
 
 <!-- HERO -->
 <section class="hero">
-  <div class="waveform-bg" id="wf"></div>
+  <div class="waveform-bg">
+    <canvas id="wf-canvas"></canvas>
+  </div>
 
   <div class="hero-tag">YouTube Audio Extractor</div>
 
@@ -569,59 +614,47 @@ footer {
 
 <!-- HOWTO -->
 <section class="howto reveal" id="howto">
-  <div class="step">
-    <div class="step-n">1</div>
-    <div class="step-title">URLをコピー</div>
-    <div class="step-desc">YouTube の動画 URL をコピーする。</div>
+  <div class="howto-header">
+    <span class="section-num">03 /</span>
+    <h2 class="section-title">使い方 <em>HOW TO</em></h2>
   </div>
-  <div class="step">
-    <div class="step-n">2</div>
-    <div class="step-title">音質を選んで変換</div>
-    <div class="step-desc">入力欄にURLを貼り付け、ビットレートを選んで「変換」。</div>
-  </div>
-  <div class="step">
-    <div class="step-n">3</div>
-    <div class="step-title">ダウンロード</div>
-    <div class="step-desc">完了後、「ダウンロード」ボタンでMP3を保存。</div>
+  <div class="steps-timeline">
+    <div class="step">
+      <div class="step-badge">
+        <div class="step-num">1</div>
+        <span class="step-tag">Step One</span>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-title">URLをコピー</div>
+      <div class="step-desc">YouTube の動画ページを開き、アドレスバーの URL をコピーする。</div>
+    </div>
+    <div class="step-connector">
+      <div class="step-connector-line"></div>
+    </div>
+    <div class="step">
+      <div class="step-badge">
+        <div class="step-num">2</div>
+        <span class="step-tag">Step Two</span>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-title">音質を選んで変換</div>
+      <div class="step-desc">入力欄に URL を貼り付け、ビットレートを選んで「変換」ボタンをクリック。</div>
+    </div>
+    <div class="step-connector">
+      <div class="step-connector-line"></div>
+    </div>
+    <div class="step">
+      <div class="step-badge">
+        <div class="step-num">3</div>
+        <span class="step-tag">Step Three</span>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-title">ダウンロード</div>
+      <div class="step-desc">変換完了後、「ダウンロード」ボタンで MP3 を Downloads フォルダに保存。</div>
+    </div>
   </div>
 </section>
 
-<!-- INSTALL -->
-<section class="install reveal" id="install">
-  <div class="iblock">
-    <div class="iblock-title">Windows</div>
-    <a class="dl-btn" href="https://github.com/tatsuabe69/youtube-mp3/releases/download/v1.0.0/YT2MP3-Setup.exe">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
-      YT2MP3-Setup.exe
-      <span class="dl-meta">53 MB · v1.0.0</span>
-    </a>
-    <div class="code" style="margin-top:24px">
-      <div class="cline"><span class="p">#</span><span style="opacity:.5">Setup.exe を実行してインストール</span></div>
-      <div class="cline"><span class="p">#</span><span style="opacity:.5">Python 不要・単体で動作</span></div>
-    </div>
-  </div>
-  <div class="iblock">
-    <div class="iblock-title">Mac</div>
-    <a class="dl-btn" href="https://github.com/tatsuabe69/youtube-mp3/releases/download/v1.0.0/YT2MP3-Mac.dmg">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
-      YT2MP3-Mac.dmg
-      <span class="dl-meta">23 MB · v1.0.0</span>
-    </a>
-    <div class="code" style="margin-top:24px">
-      <div class="cline"><span class="p">#</span><span style="opacity:.5">DMGを開いてApplicationsにドラッグ</span></div>
-      <div class="cline"><span class="p">#</span><span style="opacity:.5">macOS 12 以上対応</span></div>
-    </div>
-  </div>
-  <div class="iblock">
-    <div class="iblock-title">開発環境</div>
-    <div class="code">
-      <div class="cline"><span class="p">$</span><span>python -m venv .venv && pip install -r requirements.txt</span></div>
-      <div class="csep"></div>
-      <div class="cline"><span class="p">$</span><span>python main.py</span><span style="opacity:.4;margin-left:8px;font-size:.7rem">  # desktop</span></div>
-      <div class="cline"><span class="p">$</span><span>python app.py</span><span style="opacity:.4;margin-left:8px;font-size:.7rem">   # web :5000</span></div>
-    </div>
-  </div>
-</section>
 
 <!-- CTA -->
 <div class="cta reveal">
@@ -646,15 +679,104 @@ footer {
 </footer>
 
 <script>
-// waveform bars
-const wf = document.getElementById('wf');
-for (let i = 0; i < 80; i++) {
-  const b = document.createElement('div');
-  b.className = 'wb';
-  const h = 10 + Math.random() * 80;
-  b.style.cssText = `height:${h}%;animation-duration:${2+Math.random()*3}s;animation-delay:${Math.random()*3}s`;
-  wf.appendChild(b);
+// ── Rich Canvas Waveform ───────────────────────────────
+const canvas = document.getElementById('wf-canvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = canvas.offsetWidth  * devicePixelRatio;
+  canvas.height = canvas.offsetHeight * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
 }
+resize();
+window.addEventListener('resize', resize);
+
+// 複数の独立した sine 波を重ねる
+const waves = [
+  { freq: 0.0018, amp: 0.22, speed: 0.00055, phase: 0,    width: 1.5, alpha: 0.18 },
+  { freq: 0.0032, amp: 0.13, speed: 0.00090, phase: 1.2,  width: 1.0, alpha: 0.12 },
+  { freq: 0.0011, amp: 0.30, speed: 0.00035, phase: 2.5,  width: 2.0, alpha: 0.10 },
+  { freq: 0.0055, amp: 0.07, speed: 0.00140, phase: 0.7,  width: 0.8, alpha: 0.08 },
+  { freq: 0.0024, amp: 0.17, speed: 0.00070, phase: 3.8,  width: 1.2, alpha: 0.09 },
+];
+
+// 縦バー群（スペクトラム風）
+const BARS = 120;
+const barPhases = Array.from({length: BARS}, (_, i) => ({
+  base: 0.06 + Math.random() * 0.18,
+  amp:  0.04 + Math.random() * 0.14,
+  freq: 0.0008 + Math.random() * 0.0025,
+  phase: Math.random() * Math.PI * 2,
+  speed: 0.0004 + Math.random() * 0.0012,
+}));
+
+let t = 0;
+
+function draw() {
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+  ctx.clearRect(0, 0, W, H);
+
+  // ── 1. Sine 波レイヤー ────────────────────────────
+  waves.forEach(w => {
+    ctx.beginPath();
+    ctx.lineWidth = w.width;
+
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0,   `rgba(240,237,232,0)`);
+    grad.addColorStop(0.2, `rgba(240,237,232,${w.alpha})`);
+    grad.addColorStop(0.5, `rgba(240,237,232,${w.alpha * 1.4})`);
+    grad.addColorStop(0.8, `rgba(240,237,232,${w.alpha})`);
+    grad.addColorStop(1,   `rgba(240,237,232,0)`);
+    ctx.strokeStyle = grad;
+
+    for (let x = 0; x <= W; x += 1.5) {
+      const y = H * 0.5
+        + Math.sin(x * w.freq + t * w.speed + w.phase) * H * w.amp
+        + Math.sin(x * w.freq * 2.3 + t * w.speed * 1.7 + w.phase + 1) * H * w.amp * 0.3;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  });
+
+  // ── 2. スペクトラムバー ────────────────────────────
+  const barW = W / BARS;
+  for (let i = 0; i < BARS; i++) {
+    const bp = barPhases[i];
+    const h = H * (bp.base + bp.amp * Math.sin(t * bp.speed + bp.phase + i * 0.18));
+    const x = i * barW;
+    const cy = H * 0.5;
+
+    // 上下対称に描画
+    const grad = ctx.createLinearGradient(x, cy - h, x, cy + h);
+    grad.addColorStop(0,   'rgba(240,237,232,0)');
+    grad.addColorStop(0.35,'rgba(240,237,232,0.045)');
+    grad.addColorStop(0.5, 'rgba(240,237,232,0.07)');
+    grad.addColorStop(0.65,'rgba(240,237,232,0.045)');
+    grad.addColorStop(1,   'rgba(240,237,232,0)');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(x + barW * 0.15, cy - h, barW * 0.7, h * 2);
+  }
+
+  // ── 3. 中央ライン ───────────────────────────────
+  const cGrad = ctx.createLinearGradient(0, 0, W, 0);
+  cGrad.addColorStop(0,   'rgba(240,237,232,0)');
+  cGrad.addColorStop(0.15,'rgba(240,237,232,0.06)');
+  cGrad.addColorStop(0.5, 'rgba(240,237,232,0.12)');
+  cGrad.addColorStop(0.85,'rgba(240,237,232,0.06)');
+  cGrad.addColorStop(1,   'rgba(240,237,232,0)');
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.5);
+  ctx.lineTo(W, H * 0.5);
+  ctx.strokeStyle = cGrad;
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  t++;
+  requestAnimationFrame(draw);
+}
+draw();
 
 // scroll reveal
 const io = new IntersectionObserver(entries => {
@@ -671,7 +793,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 });
 
 // cursor spotlight on cards
-document.querySelectorAll('.feat, .qcard, .iblock').forEach(el => {
+document.querySelectorAll('.feat, .qcard, .iblock, .step').forEach(el => {
   el.addEventListener('mousemove', e => {
     const r = el.getBoundingClientRect();
     el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
