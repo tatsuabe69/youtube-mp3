@@ -19,11 +19,15 @@ def get_ffmpeg_dir() -> str | None:
     # PyInstaller でフリーズされている場合は _MEIPASS から探す
     if getattr(sys, 'frozen', False):
         base = Path(sys._MEIPASS)
-        for f in base.rglob('ffmpeg*.exe'):
-            return str(f.parent)
+        # ffmpeg.exe と ffprobe.exe が同じディレクトリにあるフォルダを探す
+        for f in base.rglob('ffmpeg.exe'):
+            if (f.parent / 'ffprobe.exe').exists():
+                return str(f.parent)
+        return None
     try:
-        import imageio_ffmpeg
-        return str(Path(imageio_ffmpeg.get_ffmpeg_exe()).parent)
+        import static_ffmpeg.run as sf
+        ffmpeg, _ = sf.get_or_fetch_platform_executables_else_raise()
+        return str(Path(ffmpeg).parent)
     except Exception:
         return None
 
