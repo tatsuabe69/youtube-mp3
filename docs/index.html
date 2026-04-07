@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YT2MP3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #111110;
+  --bg2: #191917;
+  --fg: #f0ede8;
+  --fg2: #888580;
+  --accent: #e8e4de;
+  --line: rgba(240,237,232,0.08);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  overflow-x: hidden;
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 40px; height: 56px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(17,17,16,0.9);
+  backdrop-filter: blur(12px);
+}
+.nav-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem; letter-spacing: 0.14em;
+  color: var(--fg); text-decoration: none;
+}
+.nav-right { display: flex; align-items: center; gap: 32px; }
+.nav-links { display: flex; gap: 24px; list-style: none; }
+.nav-links a {
+  font-size: 0.78rem; font-weight: 400; letter-spacing: 0.06em;
+  color: var(--fg2); text-decoration: none; transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--fg); }
+.nav-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem; letter-spacing: 0.08em;
+  color: var(--fg);
+  background: rgba(240,237,232,0.08);
+  border: 1px solid rgba(240,237,232,0.18);
+  backdrop-filter: blur(16px);
+  padding: 7px 16px; border-radius: 3px;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  position: relative; overflow: hidden;
+}
+.nav-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+  opacity: 0; transition: opacity 0.2s;
+}
+.nav-btn:hover { background: rgba(240,237,232,0.13); border-color: rgba(240,237,232,0.35); box-shadow: 0 0 16px rgba(240,237,232,0.08), inset 0 1px 0 rgba(255,255,255,0.12); }
+.nav-btn:hover::before { opacity: 1; }
+.nav-btn:active { transform: scale(0.97); }
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 0 40px 60px;
+  padding-top: 56px;
+  position: relative; overflow: hidden;
+}
+
+/* waveform bg */
+.waveform-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 40px;
+  pointer-events: none;
+  opacity: 0.07;
+}
+.wb {
+  flex: 1; max-width: 6px;
+  background: var(--fg);
+  border-radius: 1px;
+  animation: wb 3s ease-in-out infinite;
+}
+.wb:nth-child(odd) { animation-direction: alternate; }
+
+@keyframes wb {
+  0%   { height: 20%; }
+  50%  { height: 90%; }
+  100% { height: 35%; }
+}
+
+.hero-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--fg2); margin-bottom: 20px; position: relative; z-index: 1;
+}
+
+.hero-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(5rem, 14vw, 14rem);
+  line-height: 0.88; letter-spacing: 0.02em;
+  color: var(--fg);
+  position: relative; z-index: 1;
+}
+.hero-title .dim { color: rgba(240,237,232,0.18); }
+
+.hero-bottom {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-top: 40px; gap: 40px;
+  position: relative; z-index: 1;
+}
+.hero-desc {
+  font-size: 0.95rem; font-weight: 300; line-height: 1.7;
+  color: var(--fg2); max-width: 360px;
+}
+.hero-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+.btn-primary, .btn-secondary {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 12px 28px; border-radius: 3px;
+  text-decoration: none; cursor: pointer;
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* glass shine layer */
+.btn-primary::before, .btn-secondary::before {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  transition: left 0.4s ease;
+  pointer-events: none;
+}
+.btn-primary:hover::before, .btn-secondary:hover::before { left: 160%; }
+
+/* ripple */
+.btn-primary .ripple, .btn-secondary .ripple {
+  position: absolute; border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  transform: scale(0); animation: ripple-anim 0.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ripple-anim {
+  to { transform: scale(4); opacity: 0; }
+}
+
+.btn-primary {
+  color: var(--bg);
+  background: var(--fg);
+  border: 1px solid rgba(255,255,255,0.3);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 4px 16px rgba(0,0,0,0.3);
+}
+.btn-primary:hover {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 6px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(240,237,232,0.5);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: scale(0.96) translateY(0); box-shadow: 0 1px 6px rgba(0,0,0,0.3); }
+
+.btn-secondary {
+  color: var(--fg2);
+  background: rgba(240,237,232,0.04);
+  border: 1px solid rgba(240,237,232,0.14);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.btn-secondary:hover {
+  color: var(--fg);
+  background: rgba(240,237,232,0.09);
+  border-color: rgba(240,237,232,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 0 20px rgba(240,237,232,0.06);
+  transform: translateY(-1px);
+}
+.btn-secondary:active { transform: scale(0.96) translateY(0); }
+
+/* STRIP */
+.strip {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden; background: var(--bg2);
+}
+.strip-inner {
+  display: flex; animation: ticker 28s linear infinite; white-space: nowrap;
+}
+@keyframes ticker { to { transform: translateX(-50%); } }
+.strip-item {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--fg2); padding: 11px 28px;
+  display: flex; align-items: center; gap: 20px;
+}
+.strip-item::after { content: '—'; opacity: 0.3; }
+
+/* FEATURES */
+.features {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--line);
+}
+.feat {
+  padding: 48px 36px;
+  border-right: 1px solid var(--line);
+  position: relative; overflow: hidden;
+  transition: background 0.3s, border-color 0.3s;
+  cursor: default;
+}
+.feat:last-child { border-right: none; }
+/* cursor spotlight */
+.feat::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle 200px at var(--mx,50%) var(--my,50%), rgba(240,237,232,0.055) 0%, transparent 80%);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.feat:hover::after { opacity: 1; }
+.feat:hover { background: rgba(240,237,232,0.025); border-color: rgba(240,237,232,0.14); }
+.feat-n {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem; color: var(--fg2);
+  letter-spacing: 0.1em; margin-bottom: 24px;
+}
+.feat-title { font-size: 0.95rem; font-weight: 500; margin-bottom: 10px; }
+.feat-desc { font-size: 0.83rem; font-weight: 300; color: var(--fg2); line-height: 1.7; }
+
+/* QUALITY */
+.quality {
+  border-top: 1px solid var(--line);
+  padding: 80px 40px;
+}
+.quality-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--fg2); margin-bottom: 48px;
+}
+.quality-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.qcard {
+  background: var(--bg); padding: 32px 28px;
+  position: relative; overflow: hidden;
+  transition: background 0.3s, box-shadow 0.3s, transform 0.2s;
+  cursor: default;
+  transform-style: preserve-3d;
+}
+/* glass shine on hover */
+.qcard::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle 160px at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.06) 0%, transparent 70%);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none; z-index: 1;
+}
+.qcard:hover::before { opacity: 1; }
+.qcard:hover {
+  background: rgba(240,237,232,0.035);
+  box-shadow: inset 0 0 0 1px rgba(240,237,232,0.12), 0 8px 32px rgba(0,0,0,0.25);
+  transform: translateY(-3px) scale(1.01);
+}
+.qcard.featured {
+  background: rgba(240,237,232,0.04);
+  box-shadow: inset 0 0 0 1px rgba(240,237,232,0.18);
+}
+.qcard.featured:hover {
+  box-shadow: inset 0 0 0 1px rgba(240,237,232,0.3), 0 8px 32px rgba(0,0,0,0.3);
+}
+.qkbps {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 3.8rem; line-height: 1; letter-spacing: 0.02em;
+  color: var(--fg);
+}
+.qcard.featured .qkbps { color: var(--accent); }
+.qunit {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.1em; color: var(--fg2);
+  margin-bottom: 20px; text-transform: uppercase;
+}
+.qname { font-size: 0.82rem; font-weight: 500; margin-bottom: 6px; }
+.qdesc { font-size: 0.78rem; font-weight: 300; color: var(--fg2); line-height: 1.6; }
+.default-tag {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--bg); background: var(--fg);
+  padding: 2px 7px; border-radius: 1px; margin-bottom: 12px;
+}
+
+/* HOWTO */
+.howto {
+  border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+}
+.step {
+  padding: 56px 36px;
+  border-right: 1px solid var(--line);
+}
+.step:last-child { border-right: none; }
+.step-n {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 4rem; color: rgba(240,237,232,0.06);
+  line-height: 1; margin-bottom: 16px;
+}
+.step-title { font-size: 0.95rem; font-weight: 500; margin-bottom: 10px; }
+.step-desc { font-size: 0.83rem; font-weight: 300; color: var(--fg2); line-height: 1.7; }
+
+/* INSTALL */
+.install {
+  border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(3, 1fr);
+}
+.iblock {
+  padding: 48px 36px;
+  border-right: 1px solid var(--line);
+  position: relative; overflow: hidden;
+  transition: background 0.3s;
+}
+.iblock::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle 180px at var(--mx,50%) var(--my,50%), rgba(240,237,232,0.04) 0%, transparent 70%);
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.iblock:hover::after { opacity: 1; }
+.iblock:hover { background: rgba(240,237,232,0.02); }
+.iblock:last-child { border-right: none; }
+.iblock-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--fg2); margin-bottom: 24px;
+}
+.code {
+  display: flex; flex-direction: column; gap: 5px;
+}
+.cline {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.76rem; line-height: 1.5;
+  color: var(--fg); display: flex; gap: 10px;
+}
+.cline .p { color: var(--fg2); flex-shrink: 0; }
+.cline.comment .p, .cline.comment span { color: var(--fg2); opacity: 0.5; font-size: 0.7rem; }
+.csep { height: 1px; background: var(--line); margin: 8px 0; }
+.inote {
+  margin-top: 20px; font-family: 'DM Mono', monospace;
+  font-size: 0.7rem; color: var(--fg2);
+}
+
+/* CTA */
+.cta {
+  border-top: 1px solid var(--line);
+  padding: 80px 40px;
+  display: flex; align-items: center; justify-content: space-between; gap: 40px;
+}
+.cta-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  line-height: 0.9; letter-spacing: 0.02em; color: var(--fg);
+}
+.cta-sub {
+  font-size: 0.85rem; font-weight: 300; color: var(--fg2);
+  line-height: 1.7; margin-top: 16px; max-width: 340px;
+}
+.cta-btns { display: flex; gap: 10px; flex-shrink: 0; }
+
+/* FOOTER */
+footer {
+  border-top: 1px solid var(--line);
+  padding: 28px 40px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+}
+.footer-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.95rem; letter-spacing: 0.12em; color: var(--fg2);
+}
+.footer-links { display: flex; gap: 24px; list-style: none; }
+.footer-links a {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--fg2); text-decoration: none; transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--fg); }
+.footer-copy { font-size: 0.75rem; font-weight: 300; color: var(--fg2); opacity: 0.5; }
+
+/* Responsive */
+@media (max-width: 860px) {
+  nav { padding: 0 20px; }
+  .nav-links { display: none; }
+  .hero { padding: 56px 20px 48px; }
+  .waveform-bg { padding: 0 20px; }
+  .hero-bottom { flex-direction: column; align-items: flex-start; }
+  .features, .howto, .install { grid-template-columns: 1fr; }
+  .feat, .step, .iblock { border-right: none; border-bottom: 1px solid var(--line); }
+  .feat:last-child, .step:last-child, .iblock:last-child { border-bottom: none; }
+  .quality { padding: 60px 20px; }
+  .quality-grid { grid-template-columns: repeat(2, 1fr); }
+  .cta { flex-direction: column; align-items: flex-start; padding: 60px 20px; }
+  footer { flex-direction: column; align-items: flex-start; padding: 28px 20px; }
+  .strip-item { padding: 11px 20px; }
+}
+
+/* Reveal */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.on { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">YT2MP3</a>
+  <div class="nav-right">
+    <ul class="nav-links">
+      <li><a href="#features">機能</a></li>
+      <li><a href="#quality">音質</a></li>
+      <li><a href="#howto">使い方</a></li>
+      <li><a href="#install">インストール</a></li>
+    </ul>
+    <a class="nav-btn" href="https://github.com/tatsuabe69/youtube-mp3">GitHub</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="waveform-bg" id="wf"></div>
+
+  <div class="hero-tag">YouTube Audio Extractor</div>
+
+  <h1 class="hero-title">
+    YOUTUBE<br>
+    <span class="dim">TO</span><br>
+    MP3
+  </h1>
+
+  <div class="hero-bottom">
+    <p class="hero-desc">URLを貼るだけ。96〜320kbps、ローカル完結で即変換。Windows / Mac 対応。</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="https://github.com/tatsuabe69/youtube-mp3/releases">ダウンロード</a>
+      <a class="btn-secondary" href="https://github.com/tatsuabe69/youtube-mp3">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="strip-inner">
+    <span class="strip-item">yt-dlp エンジン</span>
+    <span class="strip-item">FFmpeg 変換</span>
+    <span class="strip-item">320kbps</span>
+    <span class="strip-item">ローカル完結</span>
+    <span class="strip-item">Windows</span>
+    <span class="strip-item">Mac</span>
+    <span class="strip-item">Flask + pywebview</span>
+    <span class="strip-item">Vercel 対応</span>
+    <span class="strip-item">yt-dlp エンジン</span>
+    <span class="strip-item">FFmpeg 変換</span>
+    <span class="strip-item">320kbps</span>
+    <span class="strip-item">ローカル完結</span>
+    <span class="strip-item">Windows</span>
+    <span class="strip-item">Mac</span>
+    <span class="strip-item">Flask + pywebview</span>
+    <span class="strip-item">Vercel 対応</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features reveal" id="features">
+  <div class="feat">
+    <div class="feat-n">01</div>
+    <div class="feat-title">即時変換</div>
+    <div class="feat-desc">URLを貼ってボタンを押すだけ。バックエンドで自動処理。</div>
+  </div>
+  <div class="feat">
+    <div class="feat-n">02</div>
+    <div class="feat-title">デスクトップ / Web</div>
+    <div class="feat-desc">pywebview でネイティブ動作。Flask で Web サーバーとしても起動可能。</div>
+  </div>
+  <div class="feat">
+    <div class="feat-n">03</div>
+    <div class="feat-title">ローカル完結</div>
+    <div class="feat-desc">すべての処理はマシン上で実行。データは外部に送信されない。</div>
+  </div>
+</section>
+
+<!-- QUALITY -->
+<section class="quality reveal" id="quality">
+  <div class="quality-label">Audio Quality</div>
+  <div class="quality-grid">
+    <div class="qcard">
+      <div class="qkbps">96</div>
+      <div class="qunit">kbps</div>
+      <div class="qname">エコノミー</div>
+      <div class="qdesc">容量重視。BGM・ポッドキャスト向け</div>
+    </div>
+    <div class="qcard">
+      <div class="qkbps">128</div>
+      <div class="qunit">kbps</div>
+      <div class="qname">スタンダード</div>
+      <div class="qdesc">一般的なMP3品質。日常リスニングに</div>
+    </div>
+    <div class="qcard featured">
+      <div class="default-tag">Default</div>
+      <div class="qkbps">192</div>
+      <div class="qunit">kbps</div>
+      <div class="qname">ハイクオリティ</div>
+      <div class="qdesc">音質とサイズの最適バランス</div>
+    </div>
+    <div class="qcard">
+      <div class="qkbps">320</div>
+      <div class="qunit">kbps</div>
+      <div class="qname">最高音質</div>
+      <div class="qdesc">MP3最高品質。音楽制作・DJユース</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOWTO -->
+<section class="howto reveal" id="howto">
+  <div class="step">
+    <div class="step-n">1</div>
+    <div class="step-title">URLをコピー</div>
+    <div class="step-desc">YouTube の動画 URL をコピーする。</div>
+  </div>
+  <div class="step">
+    <div class="step-n">2</div>
+    <div class="step-title">音質を選んで変換</div>
+    <div class="step-desc">入力欄にURLを貼り付け、ビットレートを選んで「変換」。</div>
+  </div>
+  <div class="step">
+    <div class="step-n">3</div>
+    <div class="step-title">ダウンロード</div>
+    <div class="step-desc">完了後、「ダウンロード」ボタンでMP3を保存。</div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section class="install reveal" id="install">
+  <div class="iblock">
+    <div class="iblock-title">Windows</div>
+    <div class="code">
+      <div class="cline"><span class="p">$</span><span>git clone https://github.com/tatsuabe69/youtube-mp3.git</span></div>
+      <div class="cline"><span class="p">$</span><span>pip install -r requirements.txt</span></div>
+      <div class="csep"></div>
+      <div class="cline"><span class="p">$</span><span>build_windows.bat</span></div>
+    </div>
+    <div class="inote">→ dist/YT2MP3.exe</div>
+  </div>
+  <div class="iblock">
+    <div class="iblock-title">Mac</div>
+    <div class="code">
+      <div class="cline"><span class="p">$</span><span>git clone https://github.com/tatsuabe69/youtube-mp3.git</span></div>
+      <div class="cline"><span class="p">$</span><span>pip install -r requirements.txt</span></div>
+      <div class="csep"></div>
+      <div class="cline"><span class="p">$</span><span>./build_mac.sh</span></div>
+    </div>
+    <div class="inote">→ dist/YT2MP3.app</div>
+  </div>
+  <div class="iblock">
+    <div class="iblock-title">開発環境</div>
+    <div class="code">
+      <div class="cline"><span class="p">$</span><span>python -m venv .venv && pip install -r requirements.txt</span></div>
+      <div class="csep"></div>
+      <div class="cline"><span class="p">$</span><span>python main.py</span><span style="opacity:.4;margin-left:8px;font-size:.7rem">  # desktop</span></div>
+      <div class="cline"><span class="p">$</span><span>python app.py</span><span style="opacity:.4;margin-left:8px;font-size:.7rem">   # web :5000</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta reveal">
+  <div>
+    <div class="cta-title">今すぐ<br>試してみる</div>
+    <p class="cta-sub">無料・オープンソース。個人利用のみ。</p>
+  </div>
+  <div class="cta-btns">
+    <a class="btn-primary" href="https://github.com/tatsuabe69/youtube-mp3/releases">ダウンロード</a>
+    <a class="btn-secondary" href="https://github.com/tatsuabe69/youtube-mp3">ソースコード</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">YT2MP3</div>
+  <ul class="footer-links">
+    <li><a href="https://github.com/tatsuabe69/youtube-mp3">GitHub</a></li>
+    <li><a href="https://github.com/tatsuabe69/youtube-mp3/issues">Issues</a></li>
+    <li><a href="https://github.com/tatsuabe69/youtube-mp3/releases">Releases</a></li>
+  </ul>
+  <div class="footer-copy">個人利用のみ</div>
+</footer>
+
+<script>
+// waveform bars
+const wf = document.getElementById('wf');
+for (let i = 0; i < 80; i++) {
+  const b = document.createElement('div');
+  b.className = 'wb';
+  const h = 10 + Math.random() * 80;
+  b.style.cssText = `height:${h}%;animation-duration:${2+Math.random()*3}s;animation-delay:${Math.random()*3}s`;
+  wf.appendChild(b);
+}
+
+// scroll reveal
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); }});
+}, { threshold: 0.06 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// smooth scroll
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); }
+  });
+});
+
+// cursor spotlight on cards
+document.querySelectorAll('.feat, .qcard, .iblock').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+});
+
+// glass button ripple
+document.querySelectorAll('.btn-primary, .btn-secondary, .nav-btn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    const r = btn.getBoundingClientRect();
+    const size = Math.max(r.width, r.height) * 1.5;
+    const x = e.clientX - r.left - size / 2;
+    const y = e.clientY - r.top - size / 2;
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+    btn.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove());
+  });
+});
+
+// qcard subtle 3d tilt
+document.querySelectorAll('.qcard').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dx = (e.clientX - cx) / r.width;
+    const dy = (e.clientY - cy) / r.height;
+    card.style.transform = `translateY(-3px) scale(1.01) rotateX(${-dy * 6}deg) rotateY(${dx * 6}deg)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = '';
+  });
+});
+</script>
+</body>
+</html>
