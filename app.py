@@ -11,6 +11,8 @@ app = Flask(__name__)
 TMP_DIR = Path(tempfile.gettempdir()) / "yt-mp3"
 TMP_DIR.mkdir(exist_ok=True)
 
+TITLES: dict[str, str] = {}  # token → title（ローカル用インメモリ）
+
 
 def get_ffmpeg_dir() -> str | None:
     try:
@@ -486,6 +488,8 @@ def api_convert():
         size = output_path.stat().st_size
         size_str = f"{size / 1024 / 1024:.1f} MB" if size >= 1024 * 1024 else f"{size // 1024} KB"
 
+        TITLES[token] = title
+
         return jsonify({
             "token": token,
             "title": title,
@@ -506,13 +510,18 @@ def api_download(token: str):
     if not filepath.exists():
         return jsonify({"error": "ファイルが見つかりません（期限切れの可能性があります）"}), 404
 
+    raw_title = TITLES.get(token, "audio")
+    safe_name = re.sub(r'[\\/:*?"<>|]', '_', raw_title).strip()[:200] or "audio"
+
     return send_file(
         filepath,
         as_attachment=True,
-        download_name="audio.mp3",
+        download_name=safe_name + ".mp3",
         mimetype="audio/mpeg",
     )
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    import threading, webbrowser
+    threading.Timer(1.2, lambda: webbrowser.open("http://localhost:5000")).start()
+    app.run(host="127.0.0.1", port=5000, debug=False)
