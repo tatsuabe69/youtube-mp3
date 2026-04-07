@@ -427,8 +427,18 @@ async function convert() {
     progressArea.style.display = 'none';
     document.getElementById('resultTitle').textContent = data.title;
     document.getElementById('resultMeta').textContent = `${data.duration} • ${data.filesize}`;
-    document.getElementById('dlBtn').onclick = () => {
-      window.location.href = `/api/download/${data.token}`;
+    document.getElementById('dlBtn').onclick = async () => {
+      // pywebview GUI モードでは JS API 経由でPython側がファイルを保存
+      if (window.pywebview) {
+        const result = await window.pywebview.api.save_file(data.token);
+        if (result && result.error) {
+          errorBox.textContent = '⚠ ' + result.error;
+          errorBox.style.display = 'block';
+        }
+      } else {
+        // ブラウザモード（開発時）は従来通り
+        window.location.href = `/api/download/${data.token}`;
+      }
     };
     resultBox.style.display = 'block';
   } catch(e) {

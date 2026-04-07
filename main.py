@@ -2,9 +2,13 @@
 アプリ版エントリーポイント（pywebview でネイティブウィンドウ表示）
 """
 import sys
+import re
+import shutil
 import threading
 import socket
 import time
+import tempfile
+from pathlib import Path
 
 
 def get_free_port() -> int:
@@ -18,6 +22,46 @@ def start_flask(port: int):
     app.run(host='127.0.0.1', port=port, debug=False, use_reloader=False)
 
 
+class DownloadApi:
+    """pywebview JS API: ダウンロードボタンから呼ばれる"""
+
+    def save_file(self, token: str):
+        """変換済み MP3 をユーザーの Downloads フォルダにコピーする"""
+        if not re.match(r'^[a-f0-9]{8}$', token):
+            return {'error': 'Invalid token'}
+
+        tmp_dir = Path(tempfile.gettempdir()) / 'yt-mp3'
+        src = tmp_dir / f'{token}.mp3'
+        if not src.exists():
+            return {'error': 'ファイルが見つかりません（期限切れかもしれません）'}
+
+        # タイトルを titles dict から取得（app モジュール経由）
+        try:
+            from app import TITLES
+            raw = TITLES.get(token, 'audio')
+        except Exception:
+            raw = 'audio'
+
+        safe_name = re.sub(r'[\\/:*?"<>|]', '_', raw).strip()[:200] or 'audio'
+        downloads = Path.home() / 'Downloads'
+        downloads.mkdir(exist_ok=True)
+
+        dst = downloads / f'{safe_name}.mp3'
+        # 同名ファイルが存在する場合は連番
+        counter = 1
+        while dst.exists():
+            dst = downloads / f'{safe_name} ({counter}).mp3'
+            counter += 1
+
+        shutil.copy2(src, dst)
+
+        # エクスプローラーでファイルを選択状態で開く
+        import subprocess
+        subprocess.Popen(['explorer', '/select,', str(dst)])
+
+        return {'ok': True, 'path': str(dst)}
+
+
 if __name__ == '__main__':
     import webview
 
@@ -26,9 +70,9 @@ if __name__ == '__main__':
     t = threading.Thread(target=start_flask, args=(port,), daemon=True)
     t.start()
 
-    # Flask が起動するまで少し待つ
     time.sleep(1.2)
 
+    api = DownloadApi()
     webview.create_window(
         'YT2MP3',
         f'http://127.0.0.1:{port}',
@@ -36,6 +80,6 @@ if __name__ == '__main__':
         height=560,
         resizable=True,
         min_size=(500, 420),
+        js_api=api,
     )
-    # edgechromium = Windows 11 標準の Edge WebView2（pythonnet 不要・軽量）
     webview.start(gui='edgechromium')
