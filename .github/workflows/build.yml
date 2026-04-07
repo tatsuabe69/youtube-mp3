@@ -60,6 +60,9 @@ jobs:
         run: |
           /Library/Frameworks/Python.framework/Versions/3.12/bin/pip3 install \
             flask yt-dlp static-ffmpeg pywebview pyinstaller pyinstaller-hooks-contrib
+          ARCHFLAGS="-arch x86_64 -arch arm64" \
+            /Library/Frameworks/Python.framework/Versions/3.12/bin/pip3 install \
+            --no-binary markupsafe --force-reinstall markupsafe
 
       - name: Build app
         run: |
