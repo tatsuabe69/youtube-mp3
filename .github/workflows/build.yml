@@ -25,13 +25,21 @@ jobs:
         run: pip install flask yt-dlp static-ffmpeg pywebview pyinstaller
 
       - name: Pre-fetch ffmpeg binaries
-        run: python -c "import static_ffmpeg.run as sf; sf.get_or_fetch_platform_executables_else_raise()"
+        run: |
+          python -c "
+          import static_ffmpeg.run as sf, shutil
+          ffmpeg, ffprobe = sf.get_or_fetch_platform_executables_else_raise()
+          shutil.copy(ffmpeg, 'ffmpeg.exe')
+          shutil.copy(ffprobe, 'ffprobe.exe')
+          print('ffmpeg:', ffmpeg)
+          "
 
       - name: Build exe
         run: |
           pyinstaller --onefile --noconsole --name YT2MP3 `
+            --add-binary "ffmpeg.exe;." `
+            --add-binary "ffprobe.exe;." `
             --collect-all yt_dlp `
-            --collect-all static_ffmpeg `
             --collect-all webview `
             --hidden-import flask `
             --hidden-import engineio.async_drivers.threading `
@@ -67,16 +75,35 @@ jobs:
             /Library/Frameworks/Python.framework/Versions/3.12/bin/pip3 install \
             --no-binary markupsafe --force-reinstall markupsafe
 
-      - name: Pre-fetch ffmpeg binaries
-        run: /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 -c "import static_ffmpeg.run as sf; sf.get_or_fetch_platform_executables_else_raise()"
+      - name: Pre-fetch ffmpeg (arm64) and build universal2
+        run: |
+          # arm64 バイナリを static-ffmpeg で取得
+          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 -c "
+          import static_ffmpeg.run as sf, shutil
+          ffmpeg, ffprobe = sf.get_or_fetch_platform_executables_else_raise()
+          shutil.copy(ffmpeg, 'ffmpeg_arm64')
+          shutil.copy(ffprobe, 'ffprobe_arm64')
+          "
+          # x86_64 バイナリを evermeet.cx から取得
+          curl -fsSL https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip -o ffmpeg_x64.zip
+          curl -fsSL https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip -o ffprobe_x64.zip
+          unzip -o ffmpeg_x64.zip
+          unzip -o ffprobe_x64.zip
+          # universal2 fat binary を作成
+          lipo -create ffmpeg_arm64 ffmpeg -output ffmpeg_universal
+          lipo -create ffprobe_arm64 ffprobe -output ffprobe_universal
+          mv ffmpeg_universal ffmpeg
+          mv ffprobe_universal ffprobe
+          chmod +x ffmpeg ffprobe
 
       - name: Build app
         run: |
           /Library/Frameworks/Python.framework/Versions/3.12/bin/pyinstaller \
             --windowed --name YT2MP3 \
             --target-arch universal2 \
+            --add-binary "ffmpeg:." \
+            --add-binary "ffprobe:." \
             --collect-all yt_dlp \
-            --collect-all static_ffmpeg \
             --collect-all webview \
             --hidden-import flask \
             --hidden-import engineio.async_drivers.threading \
