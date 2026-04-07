@@ -47,7 +47,7 @@ jobs:
           path: dist/YT2MP3-Setup.exe
 
   build-mac:
-    runs-on: macos-14
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
 
@@ -59,11 +59,8 @@ jobs:
         run: pip install flask yt-dlp static-ffmpeg pywebview pyinstaller pyinstaller-hooks-contrib
 
       - name: Build app
-        env:
-          MACOSX_DEPLOYMENT_TARGET: '11.0'
         run: |
           pyinstaller --windowed --name YT2MP3 \
-            --target-arch universal2 \
             --collect-all yt_dlp \
             --collect-all static_ffmpeg \
             --collect-all webview \
