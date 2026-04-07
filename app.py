@@ -1,29 +1,23 @@
 import os
 import re
 import uuid
-import threading
-import time
+import tempfile
 from pathlib import Path
 from flask import Flask, request, jsonify, send_file, render_template_string
 import yt_dlp
 
 app = Flask(__name__)
 
-DOWNLOAD_DIR = Path("downloads")
-DOWNLOAD_DIR.mkdir(exist_ok=True)
+TMP_DIR = Path(tempfile.gettempdir()) / "yt-mp3"
+TMP_DIR.mkdir(exist_ok=True)
 
-# ファイルを1時間後に自動削除するキャッシュ
-file_registry: dict[str, dict] = {}
 
-def cleanup_file(filepath: str, delay: int = 3600):
-    def _delete():
-        time.sleep(delay)
-        try:
-            Path(filepath).unlink(missing_ok=True)
-            file_registry.pop(filepath, None)
-        except Exception:
-            pass
-    threading.Thread(target=_delete, daemon=True).start()
+def get_ffmpeg_dir() -> str | None:
+    try:
+        import imageio_ffmpeg
+        return str(Path(imageio_ffmpeg.get_ffmpeg_exe()).parent)
+    except Exception:
+        return None
 
 
 HTML = """<!DOCTYPE html>
@@ -60,8 +54,6 @@ HTML = """<!DOCTYPE html>
     justify-content: center;
     padding: 24px;
   }
-
-  /* ── Header line ── */
   .top-bar {
     width: 100%;
     max-width: 580px;
@@ -88,8 +80,6 @@ HTML = """<!DOCTYPE html>
     color: var(--text);
   }
   .logo-text span { color: var(--gold); }
-
-  /* ── Card ── */
   .card {
     background: var(--white);
     border: 1px solid var(--border);
@@ -102,10 +92,7 @@ HTML = """<!DOCTYPE html>
       0 8px 32px rgba(0,0,0,0.06),
       0 0 0 1px rgba(201,168,76,0.08);
   }
-
-  .card-header {
-    margin-bottom: 32px;
-  }
+  .card-header { margin-bottom: 32px; }
   h1 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -119,15 +106,11 @@ HTML = """<!DOCTYPE html>
     font-size: 0.88rem;
     font-weight: 400;
   }
-
-  /* ── Divider ── */
   .divider {
     height: 1px;
     background: linear-gradient(90deg, var(--gold-subtle), transparent);
     margin-bottom: 28px;
   }
-
-  /* ── Input ── */
   .input-label {
     font-size: 0.78rem;
     font-weight: 600;
@@ -173,10 +156,7 @@ HTML = """<!DOCTYPE html>
     white-space: nowrap;
     box-shadow: 0 3px 12px rgba(201,168,76,0.4);
   }
-  button.primary:hover {
-    opacity: 0.88;
-    box-shadow: 0 5px 18px rgba(201,168,76,0.5);
-  }
+  button.primary:hover { opacity: 0.88; box-shadow: 0 5px 18px rgba(201,168,76,0.5); }
   button.primary:active { transform: scale(0.97); }
   button.primary:disabled {
     background: #e0e0e0;
@@ -186,8 +166,6 @@ HTML = """<!DOCTYPE html>
     transform: none;
     opacity: 1;
   }
-
-  /* ── Quality ── */
   .options { margin-bottom: 24px; }
   .option-group label {
     font-size: 0.78rem;
@@ -198,11 +176,7 @@ HTML = """<!DOCTYPE html>
     display: block;
     margin-bottom: 8px;
   }
-  .quality-pills {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+  .quality-pills { display: flex; gap: 8px; flex-wrap: wrap; }
   .quality-pills input[type="radio"] { display: none; }
   .quality-pills label.pill {
     display: inline-block;
@@ -225,32 +199,18 @@ HTML = """<!DOCTYPE html>
     font-weight: 700;
     box-shadow: 0 2px 8px rgba(201,168,76,0.35);
   }
-  .quality-pills label.pill:hover {
-    border-color: var(--gold);
-    color: var(--gold-dark);
-  }
+  .quality-pills label.pill:hover { border-color: var(--gold); color: var(--gold-dark); }
 
-  /* ── Progress ── */
-  .progress-area {
-    display: none;
-    margin-bottom: 20px;
-  }
+  /* Progress */
+  .progress-area { display: none; margin-bottom: 20px; }
   .progress-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
   }
-  .progress-label {
-    font-size: 0.83rem;
-    font-weight: 500;
-    color: var(--text-sub);
-  }
-  .progress-pct {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--gold);
-  }
+  .progress-label { font-size: 0.83rem; font-weight: 500; color: var(--text-sub); }
+  .progress-pct { font-size: 0.8rem; font-weight: 700; color: var(--gold); }
   .progress-bar-bg {
     background: var(--gold-subtle);
     border-radius: 99px;
@@ -261,11 +221,16 @@ HTML = """<!DOCTYPE html>
     background: linear-gradient(90deg, var(--gold-dark), var(--gold-light));
     height: 100%;
     width: 0%;
-    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
     border-radius: 99px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
   }
+  /* slow fill animation while waiting */
+  .progress-bar.loading {
+    animation: slowfill 55s cubic-bezier(0.1,0,0.3,1) forwards;
+  }
+  @keyframes slowfill { from { width: 4% } to { width: 88% } }
 
-  /* ── Result ── */
+  /* Result */
   .result {
     display: none;
     background: var(--gold-subtle);
@@ -281,50 +246,34 @@ HTML = """<!DOCTYPE html>
     margin-bottom: 16px;
   }
   .result-icon {
-    width: 40px;
-    height: 40px;
+    width: 40px; height: 40px;
     background: linear-gradient(135deg, var(--gold), var(--gold-light));
     border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
     box-shadow: 0 2px 8px rgba(201,168,76,0.3);
   }
   .result-info { min-width: 0; }
   .result-title {
-    font-size: 0.93rem;
-    font-weight: 600;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.93rem; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .result-meta {
-    font-size: 0.8rem;
-    color: var(--text-sub);
-    margin-top: 2px;
-  }
+  .result-meta { font-size: 0.8rem; color: var(--text-sub); margin-top: 2px; }
   .download-btn {
     width: 100%;
     background: var(--text);
     color: var(--white);
     font-family: inherit;
-    font-size: 0.93rem;
-    font-weight: 700;
-    padding: 14px;
-    border: none;
-    border-radius: 11px;
-    cursor: pointer;
-    letter-spacing: 0.03em;
+    font-size: 0.93rem; font-weight: 700;
+    padding: 14px; border: none; border-radius: 11px;
+    cursor: pointer; letter-spacing: 0.03em;
     transition: background 0.2s, transform 0.1s;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
   .download-btn:hover { background: #333; }
   .download-btn:active { transform: scale(0.98); }
 
-  /* ── Error ── */
+  /* Error */
   .error {
     display: none;
     background: var(--error-bg);
@@ -332,16 +281,14 @@ HTML = """<!DOCTYPE html>
     border-radius: 11px;
     padding: 13px 16px;
     color: var(--error-text);
-    font-size: 0.87rem;
-    font-weight: 500;
+    font-size: 0.87rem; font-weight: 500;
     margin-top: 8px;
   }
 
-  /* ── Spinner ── */
+  /* Spinner */
   .spinner {
     display: inline-block;
-    width: 13px;
-    height: 13px;
+    width: 13px; height: 13px;
     border: 2px solid rgba(255,255,255,0.4);
     border-top-color: white;
     border-radius: 50%;
@@ -351,13 +298,11 @@ HTML = """<!DOCTYPE html>
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Footer ── */
+  /* Footer */
   .footer {
     margin-top: 24px;
-    font-size: 0.76rem;
-    color: #bbb;
-    text-align: center;
-    letter-spacing: 0.03em;
+    font-size: 0.76rem; color: #bbb;
+    text-align: center; letter-spacing: 0.03em;
   }
 </style>
 </head>
@@ -424,9 +369,6 @@ HTML = """<!DOCTYPE html>
 <div class="footer">個人利用のみ · 著作権に配慮してご利用ください</div>
 
 <script>
-let jobId = null;
-let pollTimer = null;
-
 async function convert() {
   const url = document.getElementById('url').value.trim();
   if (!url) return;
@@ -436,13 +378,23 @@ async function convert() {
   const errorBox = document.getElementById('errorBox');
   const resultBox = document.getElementById('resultBox');
   const progressArea = document.getElementById('progressArea');
+  const bar = document.getElementById('progressBar');
+  const label = document.getElementById('progressLabel');
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>変換中';
   errorBox.style.display = 'none';
   resultBox.style.display = 'none';
   progressArea.style.display = 'block';
-  setProgress(5, '動画情報を取得中...');
+  label.textContent = 'ダウンロード・変換中...';
+
+  // CSSアニメーションで擬似進捗
+  bar.classList.remove('loading');
+  void bar.offsetWidth; // reflow
+  bar.style.width = '0%';
+  bar.style.transition = 'none';
+  void bar.offsetWidth;
+  bar.classList.add('loading');
 
   try {
     const res = await fetch('/api/convert', {
@@ -452,70 +404,30 @@ async function convert() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '変換失敗');
-    jobId = data.job_id;
-    pollStatus();
+
+    // 完了アニメーション
+    bar.classList.remove('loading');
+    bar.style.transition = 'width 0.4s cubic-bezier(0.4,0,0.2,1)';
+    bar.style.width = '100%';
+    label.textContent = '完了!';
+    await new Promise(r => setTimeout(r, 400));
+
+    progressArea.style.display = 'none';
+    document.getElementById('resultTitle').textContent = data.title;
+    document.getElementById('resultMeta').textContent = `${data.duration} • ${data.filesize}`;
+    document.getElementById('dlBtn').onclick = () => {
+      window.location.href = `/api/download/${data.token}`;
+    };
+    resultBox.style.display = 'block';
   } catch(e) {
-    showError(e.message);
-    resetBtn();
+    bar.classList.remove('loading');
+    progressArea.style.display = 'none';
+    errorBox.textContent = '⚠ ' + e.message;
+    errorBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '変換';
   }
-}
-
-function pollStatus() {
-  pollTimer = setInterval(async () => {
-    try {
-      const res = await fetch(`/api/status/${jobId}`);
-      const data = await res.json();
-
-      if (data.status === 'downloading') {
-        setProgress(data.percent || 20, `ダウンロード中... ${data.percent || ''}%`);
-      } else if (data.status === 'converting') {
-        setProgress(80, 'MP3に変換中...');
-      } else if (data.status === 'done') {
-        clearInterval(pollTimer);
-        setProgress(100, '完了!');
-        showResult(data);
-        resetBtn();
-      } else if (data.status === 'error') {
-        clearInterval(pollTimer);
-        showError(data.error);
-        resetBtn();
-      }
-    } catch(e) {
-      clearInterval(pollTimer);
-      showError('サーバーとの通信に失敗しました');
-      resetBtn();
-    }
-  }, 1000);
-}
-
-function setProgress(pct, label) {
-  document.getElementById('progressBar').style.width = pct + '%';
-  document.getElementById('progressLabel').textContent = label;
-  document.getElementById('progressPct').textContent = pct < 100 ? pct + '%' : '';
-}
-
-function showResult(data) {
-  document.getElementById('progressArea').style.display = 'none';
-  const box = document.getElementById('resultBox');
-  document.getElementById('resultTitle').textContent = data.title;
-  document.getElementById('resultMeta').textContent = `${data.duration} • ${data.filesize}`;
-  document.getElementById('dlBtn').onclick = () => {
-    window.location.href = `/api/download/${data.job_id}`;
-  };
-  box.style.display = 'block';
-}
-
-function showError(msg) {
-  document.getElementById('progressArea').style.display = 'none';
-  const box = document.getElementById('errorBox');
-  box.textContent = '⚠ ' + msg;
-  box.style.display = 'block';
-}
-
-function resetBtn() {
-  const btn = document.getElementById('convertBtn');
-  btn.disabled = false;
-  btn.textContent = '変換';
 }
 
 document.getElementById('url').addEventListener('keydown', e => {
@@ -526,65 +438,6 @@ document.getElementById('url').addEventListener('keydown', e => {
 </html>
 """
 
-jobs: dict[str, dict] = {}
-
-
-def run_download(job_id: str, url: str, quality: str):
-    output_path = DOWNLOAD_DIR / f"{job_id}.mp3"
-
-    def progress_hook(d):
-        if d["status"] == "downloading":
-            total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
-            downloaded = d.get("downloaded_bytes", 0)
-            if total:
-                pct = int(downloaded / total * 100)
-                jobs[job_id]["percent"] = pct
-            jobs[job_id]["status"] = "downloading"
-        elif d["status"] == "finished":
-            jobs[job_id]["status"] = "converting"
-
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": str(DOWNLOAD_DIR / f"{job_id}.%(ext)s"),
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": quality,
-        }],
-        "progress_hooks": [progress_hook],
-        "quiet": True,
-        "no_warnings": True,
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            title = info.get("title", "audio")
-            duration_sec = info.get("duration", 0)
-            m, s = divmod(duration_sec, 60)
-            duration_str = f"{m}:{s:02d}"
-
-        # ファイルサイズ取得
-        size = output_path.stat().st_size
-        if size < 1024 * 1024:
-            size_str = f"{size // 1024} KB"
-        else:
-            size_str = f"{size / 1024 / 1024:.1f} MB"
-
-        jobs[job_id].update({
-            "status": "done",
-            "title": title,
-            "duration": duration_str,
-            "filesize": size_str,
-            "filepath": str(output_path),
-            "filename": re.sub(r'[\\/*?:"<>|]', "_", title) + ".mp3",
-        })
-        cleanup_file(str(output_path))
-
-    except Exception as e:
-        jobs[job_id]["status"] = "error"
-        jobs[job_id]["error"] = str(e)
-
 
 @app.route("/")
 def index():
@@ -592,51 +445,71 @@ def index():
 
 
 @app.route("/api/convert", methods=["POST"])
-def convert():
+def api_convert():
     data = request.get_json()
-    url = data.get("url", "").strip()
-    quality = data.get("quality", "192")
+    url = (data or {}).get("url", "").strip()
+    quality = (data or {}).get("quality", "192")
 
-    if not url:
-        return jsonify({"error": "URLが必要です"}), 400
-
-    # 簡易URLバリデーション
-    if not re.search(r"(youtube\.com|youtu\.be)", url):
+    if not url or not re.search(r"(youtube\.com|youtu\.be)", url):
         return jsonify({"error": "YouTubeのURLを入力してください"}), 400
 
     if quality not in ("96", "128", "192", "320"):
         quality = "192"
 
-    job_id = str(uuid.uuid4())[:8]
-    jobs[job_id] = {"status": "downloading", "percent": 0}
+    token = str(uuid.uuid4())[:8]
+    output_path = TMP_DIR / f"{token}.mp3"
 
-    thread = threading.Thread(target=run_download, args=(job_id, url, quality), daemon=True)
-    thread.start()
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": str(TMP_DIR / f"{token}.%(ext)s"),
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": quality,
+        }],
+        "quiet": True,
+        "no_warnings": True,
+    }
 
-    return jsonify({"job_id": job_id})
+    ffmpeg_dir = get_ffmpeg_dir()
+    if ffmpeg_dir:
+        ydl_opts["ffmpeg_location"] = ffmpeg_dir
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = info.get("title", "audio")
+            duration_sec = info.get("duration", 0) or 0
+            m, s = divmod(int(duration_sec), 60)
+            duration_str = f"{m}:{s:02d}"
+
+        size = output_path.stat().st_size
+        size_str = f"{size / 1024 / 1024:.1f} MB" if size >= 1024 * 1024 else f"{size // 1024} KB"
+
+        return jsonify({
+            "token": token,
+            "title": title,
+            "duration": duration_str,
+            "filesize": size_str,
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/status/<job_id>")
-def status(job_id: str):
-    job = jobs.get(job_id)
-    if not job:
-        return jsonify({"error": "ジョブが見つかりません"}), 404
-    return jsonify({**job, "job_id": job_id})
+@app.route("/api/download/<token>")
+def api_download(token: str):
+    if not re.match(r'^[a-f0-9]{8}$', token):
+        return jsonify({"error": "Invalid token"}), 400
 
-
-@app.route("/api/download/<job_id>")
-def download(job_id: str):
-    job = jobs.get(job_id)
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "ファイルが見つかりません"}), 404
-
-    filepath = job["filepath"]
-    filename = job["filename"]
+    filepath = TMP_DIR / f"{token}.mp3"
+    if not filepath.exists():
+        return jsonify({"error": "ファイルが見つかりません（期限切れの可能性があります）"}), 404
 
     return send_file(
         filepath,
         as_attachment=True,
-        download_name=filename,
+        download_name="audio.mp3",
         mimetype="audio/mpeg",
     )
 
