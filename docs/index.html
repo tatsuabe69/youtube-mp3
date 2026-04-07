@@ -363,6 +363,43 @@ nav {
   font-size: 0.7rem; color: var(--fg2);
 }
 
+/* Download button */
+.dl-btn {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.76rem; letter-spacing: 0.06em;
+  color: var(--fg); text-decoration: none;
+  background: rgba(240,237,232,0.06);
+  border: 1px solid rgba(240,237,232,0.15);
+  backdrop-filter: blur(12px);
+  border-radius: 3px; padding: 14px 18px;
+  position: relative; overflow: hidden;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.dl-btn::before {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  transition: left 0.4s ease;
+}
+.dl-btn:hover::before { left: 160%; }
+.dl-btn:hover {
+  background: rgba(240,237,232,0.1);
+  border-color: rgba(240,237,232,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.3);
+  transform: translateY(-1px);
+}
+.dl-btn:active { transform: scale(0.97); }
+.dl-btn svg { flex-shrink: 0; opacity: 0.7; }
+.dl-meta {
+  margin-left: auto; font-size: 0.65rem;
+  color: var(--fg2); letter-spacing: 0.08em;
+}
+.dl-btn--disabled {
+  opacity: 0.4; pointer-events: none; cursor: not-allowed;
+}
+
 /* CTA */
 .cta {
   border-top: 1px solid var(--line);
@@ -451,7 +488,7 @@ footer {
   <div class="hero-bottom">
     <p class="hero-desc">URLを貼るだけ。96〜320kbps、ローカル完結で即変換。Windows / Mac 対応。</p>
     <div class="hero-actions">
-      <a class="btn-primary" href="https://github.com/tatsuabe69/youtube-mp3/releases">ダウンロード</a>
+      <a class="btn-primary" href="https://github.com/tatsuabe69/youtube-mp3/releases/download/v1.0.0/YT2MP3-Windows.zip">ダウンロード</a>
       <a class="btn-secondary" href="https://github.com/tatsuabe69/youtube-mp3">GitHub</a>
     </div>
   </div>
@@ -553,23 +590,28 @@ footer {
 <section class="install reveal" id="install">
   <div class="iblock">
     <div class="iblock-title">Windows</div>
-    <div class="code">
-      <div class="cline"><span class="p">$</span><span>git clone https://github.com/tatsuabe69/youtube-mp3.git</span></div>
-      <div class="cline"><span class="p">$</span><span>pip install -r requirements.txt</span></div>
-      <div class="csep"></div>
-      <div class="cline"><span class="p">$</span><span>build_windows.bat</span></div>
+    <a class="dl-btn" href="https://github.com/tatsuabe69/youtube-mp3/releases/download/v1.0.0/YT2MP3-Windows.zip">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
+      YT2MP3-Windows.zip
+      <span class="dl-meta">53 MB · v1.0.0</span>
+    </a>
+    <div class="code" style="margin-top:24px">
+      <div class="cline"><span class="p">#</span><span style="opacity:.5">ZIPを展開して YT2MP3.exe を実行</span></div>
+      <div class="cline"><span class="p">#</span><span style="opacity:.5">Python 不要・単体で動作</span></div>
     </div>
-    <div class="inote">→ dist/YT2MP3.exe</div>
   </div>
   <div class="iblock">
     <div class="iblock-title">Mac</div>
-    <div class="code">
+    <a class="dl-btn dl-btn--disabled" href="#">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
+      YT2MP3-Mac.zip
+      <span class="dl-meta">Coming soon</span>
+    </a>
+    <div class="code" style="margin-top:24px">
       <div class="cline"><span class="p">$</span><span>git clone https://github.com/tatsuabe69/youtube-mp3.git</span></div>
       <div class="cline"><span class="p">$</span><span>pip install -r requirements.txt</span></div>
-      <div class="csep"></div>
       <div class="cline"><span class="p">$</span><span>./build_mac.sh</span></div>
     </div>
-    <div class="inote">→ dist/YT2MP3.app</div>
   </div>
   <div class="iblock">
     <div class="iblock-title">開発環境</div>
@@ -589,7 +631,7 @@ footer {
     <p class="cta-sub">無料・オープンソース。個人利用のみ。</p>
   </div>
   <div class="cta-btns">
-    <a class="btn-primary" href="https://github.com/tatsuabe69/youtube-mp3/releases">ダウンロード</a>
+    <a class="btn-primary" href="https://github.com/tatsuabe69/youtube-mp3/releases/download/v1.0.0/YT2MP3-Windows.zip">ダウンロード</a>
     <a class="btn-secondary" href="https://github.com/tatsuabe69/youtube-mp3">ソースコード</a>
   </div>
 </div>
@@ -599,7 +641,7 @@ footer {
   <ul class="footer-links">
     <li><a href="https://github.com/tatsuabe69/youtube-mp3">GitHub</a></li>
     <li><a href="https://github.com/tatsuabe69/youtube-mp3/issues">Issues</a></li>
-    <li><a href="https://github.com/tatsuabe69/youtube-mp3/releases">Releases</a></li>
+    <li><a href="https://github.com/tatsuabe69/youtube-mp3/releases/download/v1.0.0/YT2MP3-Windows.zip">Releases</a></li>
   </ul>
   <div class="footer-copy">個人利用のみ</div>
 </footer>
