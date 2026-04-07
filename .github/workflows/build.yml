@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: pip install flask yt-dlp static-ffmpeg pywebview pyinstaller
 
+      - name: Pre-fetch ffmpeg binaries
+        run: python -c "import static_ffmpeg.run as sf; sf.get_or_fetch_platform_executables_else_raise()"
+
       - name: Build exe
         run: |
           pyinstaller --onefile --noconsole --name YT2MP3 `
@@ -63,6 +66,9 @@ jobs:
           ARCHFLAGS="-arch x86_64 -arch arm64" \
             /Library/Frameworks/Python.framework/Versions/3.12/bin/pip3 install \
             --no-binary markupsafe --force-reinstall markupsafe
+
+      - name: Pre-fetch ffmpeg binaries
+        run: /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 -c "import static_ffmpeg.run as sf; sf.get_or_fetch_platform_executables_else_raise()"
 
       - name: Build app
         run: |
