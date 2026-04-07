@@ -60,7 +60,7 @@ jobs:
 
       - name: Build app
         run: |
-          pyinstaller --onefile --windowed --name YT2MP3 \
+          pyinstaller --windowed --name YT2MP3 \
             --collect-all yt_dlp \
             --collect-all static_ffmpeg \
             --collect-all webview \
@@ -71,7 +71,7 @@ jobs:
       - name: Create DMG
         run: |
           mkdir -p dist/dmg
-          cp -r dist/YT2MP3 dist/dmg/ 2>/dev/null || cp -r "dist/YT2MP3.app" dist/dmg/
+          cp -r "dist/YT2MP3.app" dist/dmg/
           hdiutil create \
             -volname "YT2MP3" \
             -srcfolder dist/dmg \
